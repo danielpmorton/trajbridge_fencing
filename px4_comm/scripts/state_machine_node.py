@@ -35,6 +35,15 @@ class StateMachine(Node):
         self.declare_parameter('timer_time_tolerance', 3.0)
         self.declare_parameter('timer_distance_tolerance', 0.2)
         self.declare_parameter('gcs_time_tolerance', 0.5)
+        # Room limits copied from newer version of trajbridge
+        # These are for the FLIGHTROOM
+        # self.declare_parameter('x_room_limits',[-8.0, 8.0])
+        # self.declare_parameter('y_room_limits',[-3.0, 3.0])
+        # self.declare_parameter('z_room_limits',[-2.5, 0.5])
+        # These are for SRC DANCE STUDIO
+        self.declare_parameter('x_room_limits',[-2.25, 2.25])
+        self.declare_parameter('y_room_limits',[-1.5, 1.5])
+        self.declare_parameter('z_room_limits',[-2.3, 0.5])
 
         # Get Parameters
         at_st = self.get_parameter('auto_start').value
@@ -45,6 +54,9 @@ class StateMachine(Node):
         tmr_t_tol = self.get_parameter('timer_time_tolerance').value
         tmr_s_tol = self.get_parameter('timer_distance_tolerance').value
         gcs_t_tol = self.get_parameter('gcs_time_tolerance').value
+        x_r_lmts = self.get_parameter('x_room_limits').value
+        y_r_lmts = self.get_parameter('y_room_limits').value
+        z_r_lmts = self.get_parameter('z_room_limits').value
 
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
@@ -88,6 +100,9 @@ class StateMachine(Node):
         self.sm_tmr = bt.BallTimer(0.0,0.0,tmr_t_tol,tmr_s_tol)         # timer for state machine transitions
         self.gcs_t_tol = gcs_t_tol                                      # time tolerance for gcs messages
         self.at_ld = at_ld                                              # auto land flag
+        self.rm_lmts = np.array([[x_r_lmts[0],x_r_lmts[1]],             # room limits
+                                 [y_r_lmts[0],y_r_lmts[1]],
+                                 [z_r_lmts[0],z_r_lmts[1]]])
         
         if at_st == True:
             self.drone_state = sm.StateMachine.STARTUP_AUTO
@@ -168,6 +183,19 @@ class StateMachine(Node):
             self.offboard_controller.land()
             exit(0)
 
+        # Room Limits Fail-Safe
+        # This is from the newer trajbridge version and copied over
+        if ((xv_cr[0] < self.rm_lmts[0][0]) or (xv_cr[0] > self.rm_lmts[0][1]) or
+            (xv_cr[1] < self.rm_lmts[1][0]) or (xv_cr[1] > self.rm_lmts[1][1]) or
+            (xv_cr[2] < self.rm_lmts[2][0]) or (xv_cr[2] > self.rm_lmts[2][1])):
+            self.drone_state = sm.StateMachine.LAND
+            
+            # Print outs
+            print("-------------------------------------------")
+            print("Room Limit Fail-Safe Triggered at:")
+            print("x: ",xv_cr[0:3])
+            print("State Machine: LAND")
+
         # Drone State Machine
         if self.drone_state == sm.StateMachine.STARTUP_AUTO:
             # Looping State Actions
@@ -191,7 +219,7 @@ class StateMachine(Node):
                 print("State Machine: TAKEOFF")
 
         elif self.drone_state == sm.StateMachine.STARTUP_USER:
-            if self.vs_cr.nav_state is VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+            if self.vs_cr.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
                 # State Transition Actions
                 self.update_smp_sp(self.wp_rdy)                                     # Send to ready waypoint
                 self.sm_tmr.reset(t_cr,self.smp_sp.position)                        # Reset state machine timer for takeoff
