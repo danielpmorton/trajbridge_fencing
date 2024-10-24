@@ -41,9 +41,14 @@ class StateMachine(Node):
         # self.declare_parameter('y_room_limits',[-3.0, 3.0])
         # self.declare_parameter('z_room_limits',[-2.5, 0.5])
         # These are for SRC DANCE STUDIO
-        self.declare_parameter('x_room_limits',[-2.25, 2.25])
-        self.declare_parameter('y_room_limits',[-1.5, 1.5])
+        # self.declare_parameter('x_room_limits',[-2.25, 2.25])
+        # self.declare_parameter('y_room_limits',[-1.5, 1.5])
+        # self.declare_parameter('z_room_limits',[-2.3, 0.5])
+        # These are for SRC FIELD ROOM
+        self.declare_parameter('x_room_limits',[-2.5, 2.5])
+        self.declare_parameter('y_room_limits',[-2.0, 2.0])
         self.declare_parameter('z_room_limits',[-2.3, 0.5])
+
 
         # Get Parameters
         at_st = self.get_parameter('auto_start').value
